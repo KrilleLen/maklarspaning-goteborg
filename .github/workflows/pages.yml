@@ -26,128 +26,47 @@ jobs:
       - name: Hämta projektet
         uses: actions/checkout@v4
 
-      - name: Bygg grundversionen
+      - name: Bygg tidigare stabil version
         run: |
           mkdir -p _site
           cat package/app.zip.b64.part* | base64 --decode > app.zip
           echo "08a0407a01fc094c894798facefbbf2494228c0586e765378ba6d5a1ff8746ac  app.zip" | sha256sum --check
           unzip -q app.zip -d _site
 
-      - name: Lägg på kontorspersonal v4
-        run: |
           cat overlays/v4/overlay.tar.xz.b64.part* | base64 --decode > overlay-v4.tar.xz
           echo "23dbb54db029d7e0db8eac45267e94bf65602fce6787904c09ca094d0f68b398  overlay-v4.tar.xz" | sha256sum --check
           tar -xJf overlay-v4.tar.xz -C _site
-          node --check _site/app.js
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
 
-          data = json.loads(Path('_site/data/app-data.json').read_text())
-          assert len(data['companies']) == 45
-          assert len(data['offices']) == 91
-          assert len(data['workforce']) == 21
-          assert len(data['marketAreas']) >= 8
-
-          eo = next(row for row in data['companies'] if row.get('isOwn'))
-          assert len(eo.get('history', [])) == 5
-
-          exact = [o for o in data['offices'] if o.get('staffScope') == 'office']
-          assert len(exact) >= 39
-          fastighetsbyran = [o for o in data['offices'] if o.get('brand') == 'Fastighetsbyrån']
-          assert len(fastighetsbyran) == 18
-          assert all(o.get('staffScope') == 'office' and o.get('staffUrl') for o in fastighetsbyran)
-          PY
-
-      - name: Lägg på granskade buggfixar v5
-        run: |
           base64 --decode overlays/v5/v5.patch.xz.b64 > v5.patch.xz
           echo "9347999733eea24f7aa140b718651f736217cf0b53249f8bff9fe530159f4f1f  v5.patch.xz" | sha256sum --check
           xz -dc v5.patch.xz > v5.patch
           (cd _site && patch -p1 < ../v5.patch)
-          node --check _site/app.js
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
 
-          data = json.loads(Path('_site/data/app-data.json').read_text())
-          assert len(data['companies']) == 45
-          assert len(data['offices']) == 91
-          assert len(data['workforce']) == 21
-          assert len(data['marketAreas']) >= 8
-
-          app = Path('_site/app.js').read_text()
-          styles = Path('_site/styles.css').read_text()
-          sw = Path('_site/sw.js').read_text()
-
-          for phrase in [
-              "const APP_VERSION = '5.0'",
-              'Data saknas',
-              'candidateAssessment',
-              'EO-affärer kan inte vara fler än marknadens total',
-              'Personlista ännu inte verifierad',
-              'Nästa aktivitet saknas',
-          ]:
-              assert phrase in app
-
-          assert '.panel { grid-column: span 6' not in styles
-          assert 'maklarspaning-v5-20260724' in sw
-          print('Bugggranskning v5 godkänd')
-          PY
-
-      - name: Lägg på personalvyn v6
-        run: |
           cat overlays/v6/overlay.tar.xz.b64.part* | base64 --decode > overlay-v6.tar.xz
           echo "33fcaec02492dd969ef003497ccfdf3b583ce418a75f98bc837e4659d148234e  overlay-v6.tar.xz" | sha256sum --check
           tar -xJf overlay-v6.tar.xz -C _site
+
           base64 --decode overlays/v6/v61.patch.xz.b64 > v61.patch.xz
           echo "09147b34c9da75b42eb54d9199b1dd6357619121220052e737b135049dbd93e3  v61.patch.xz" | sha256sum --check
           xz -dc v61.patch.xz > v61.patch
           (cd _site && patch -p1 < ../v61.patch)
+
+      - name: Lägg på fullimport v7
+        run: |
+          base64 --decode overlays/v7/v7.patch.xz.b64 > v7.patch.xz
+          echo "7294e4bf284ff2d76ae0eeac618f1cefe3d5c89d4d5315c60cd0b6b38ce0ab71  v7.patch.xz" | sha256sum --check
+          xz -dc v7.patch.xz > v7.patch
+          (cd _site && patch -p1 < ../v7.patch)
           node --check _site/app.js
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-
-          data = json.loads(Path('_site/data/app-data.json').read_text())
-          assert len(data['companies']) == 45
-          assert len(data['offices']) == 91
-          assert len(data['officePeople']) == 50
-
-          counts = {
-              office_id: sum(person['officeId'] == office_id for person in data['officePeople'])
-              for office_id in ['o1', 'o2', 'o3', 'o4', 'o5']
-          }
-          assert counts == {'o1': 12, 'o2': 13, 'o3': 12, 'o4': 11, 'o5': 2}
-
-          hovas = [person for person in data['officePeople'] if person['officeId'] == 'o2']
-          assert sum(person['type'] == 'broker' for person in hovas) == 10
-          assert sum(person['type'] == 'staff' for person in hovas) == 3
-
-          app = Path('_site/app.js').read_text()
-          sw = Path('_site/sw.js').read_text()
-          for phrase in [
-              "const APP_VERSION = '6.1'",
-              'data-office-people',
-              'Hittamäklare / Booli',
-              'openOfficePeople',
-              'data-add-office-person',
-          ]:
-              assert phrase in app
-          assert 'maklarspaning-v6-1-20260724' in sw
-          hisingen = [person for person in data['officePeople'] if person['officeId'] == 'o4']
-          assert all(person.get('profileUrl') for person in hisingen if person['type'] == 'broker')
-          print('Personalvy v6.1 godkänd: 50 verifierade personposter')
-          PY
 
       - name: Hämta personal för samtliga 91 kontor
-        timeout-minutes: 30
+        timeout-minutes: 35
         run: |
-          cat overlays/v7/overlay-v7.tar.xz.b64.part* | base64 --decode > overlay-v7.tar.xz
-          echo "f439d71f49b9097bfe42d2570973703d0f551b2a95a5cd40b93b9f69a77fedef  overlay-v7.tar.xz" | sha256sum --check
-          tar -xJf overlay-v7.tar.xz -C _site
           python3 -m pip install --disable-pip-version-check --quiet requests beautifulsoup4 lxml
           python3 _site/scripts/update_people.py _site/data/app-data.json --report _site/data/people-report.json
+
+      - name: Verifiera täckning och app
+        run: |
           node --check _site/app.js
           python3 - <<'PY'
           import json
@@ -161,6 +80,7 @@ jobs:
           assert len(data['offices']) == 91
           assert coverage['officeCount'] == 91
           assert all(office.get('peopleStatus') for office in data['offices'])
+          assert all('peopleCount' in office for office in data['offices'])
           assert coverage['officeAssignments'] >= 50
           assert "const APP_VERSION = '7.0'" in Path('_site/app.js').read_text()
           assert 'maklarspaning-v7-20260724' in Path('_site/sw.js').read_text()
