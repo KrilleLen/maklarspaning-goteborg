@@ -3,7 +3,7 @@
   "short_name": "Mäklarspaning",
   "description": "Bolagsjämförelse och rekryteringsradar för mäklarfirmor i Göteborg.",
   "lang": "sv-SE",
-  "start_url": "./latest.html?v=7.2",
+  "start_url": "./latest.html?v=7.2.1",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
