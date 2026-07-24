@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  schedule:
+    - cron: '15 4 * * 1'
 
 permissions:
   contents: read
@@ -137,7 +139,34 @@ jobs:
           assert all(person.get('profileUrl') for person in hisingen if person['type'] == 'broker')
           print('Personalvy v6.1 godkänd: 50 verifierade personposter')
           PY
-          rm -rf _site/.github _site/source _site/package _site/overlays
+
+      - name: Hämta personal för samtliga 91 kontor
+        timeout-minutes: 30
+        run: |
+          cat overlays/v7/overlay-v7.tar.xz.b64.part* | base64 --decode > overlay-v7.tar.xz
+          echo "f439d71f49b9097bfe42d2570973703d0f551b2a95a5cd40b93b9f69a77fedef  overlay-v7.tar.xz" | sha256sum --check
+          tar -xJf overlay-v7.tar.xz -C _site
+          python3 -m pip install --disable-pip-version-check --quiet requests beautifulsoup4 lxml
+          python3 _site/scripts/update_people.py _site/data/app-data.json --report _site/data/people-report.json
+          node --check _site/app.js
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          data = json.loads(Path('_site/data/app-data.json').read_text())
+          report = json.loads(Path('_site/data/people-report.json').read_text())
+          coverage = report['coverage']
+
+          assert len(data['companies']) == 45
+          assert len(data['offices']) == 91
+          assert coverage['officeCount'] == 91
+          assert all(office.get('peopleStatus') for office in data['offices'])
+          assert coverage['officeAssignments'] >= 50
+          assert "const APP_VERSION = '7.0'" in Path('_site/app.js').read_text()
+          assert 'maklarspaning-v7-20260724' in Path('_site/sw.js').read_text()
+          print('Personalkontroll v7:', json.dumps(coverage, ensure_ascii=False))
+          PY
+          rm -rf _site/.github _site/source _site/package _site/overlays _site/scripts
 
       - name: Konfigurera Pages
         uses: actions/configure-pages@v5
