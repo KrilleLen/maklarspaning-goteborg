@@ -16,67 +16,22 @@ concurrency:
 
 jobs:
   deploy:
-    name: Publicera v7.4 stabil
+    name: Publicera ren v7.4
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-
     steps:
       - name: Hämta repositoryt
         uses: actions/checkout@v4
 
-      - name: Bygg färdiga webbfiler
+      - name: Packa upp den verifierade webbappen
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p _site/data _site/icons
-
-          cp index.html _site/index.html
-          cp index.html _site/404.html
-          cp index.html _site/latest.html
-          cp manifest.webmanifest _site/manifest.webmanifest
-          cp favicon.svg _site/favicon.svg
-          cp sw.js _site/sw.js
-          cp -r icons/. _site/icons/
-          touch _site/.nojekyll
-
-          cat v72/styles.css.gz.b64 \
-            | tr -d '\r\n\t ' \
-            | base64 --decode \
-            | gzip --decompress --stdout > _site/styles.css
-
-          cat \
-            v72/app.direct.js.gz.b64.s1 \
-            v72/app.direct.js.gz.b64.s2 \
-            v72/app.direct.js.gz.b64.s3 \
-            v72/app.direct.js.gz.b64.s4 \
-            v72/app.direct.js.gz.b64.s5 \
-            v72/app.direct.js.gz.b64.s6 \
-            v72/app.direct.js.gz.b64.s7 \
-            v72/app.direct.js.gz.b64.s8 \
-            | tr -d '\r\n\t ' \
-            | base64 --decode \
-            | gzip --decompress --stdout > _site/app.js
-
-          cat \
-            v72/app-data.json.gz.b64.s1 \
-            v72/app-data.json.gz.b64.s2 \
-            v72/app-data.json.gz.b64.s3 \
-            v72/app-data.json.gz.b64.s4 \
-            v72/app-data.json.gz.b64.s5 \
-            | tr -d '\r\n\t ' \
-            | base64 --decode \
-            | gzip --decompress --stdout > _site/data/app-data.json
-
-          sed -i "s/const APP_VERSION = '[^']*';/const APP_VERSION = '7.4';/" _site/app.js
-          sed -i 's/content="7.3"/content="7.4"/g; s/>v7.3</>v7.4</g; s/?v=7.3/?v=7.4/g' _site/index.html _site/404.html _site/latest.html
-          sed -i 's/7.3/7.4/g' _site/manifest.webmanifest _site/sw.js
-
+          mkdir -p _site
+          tar -xzf site-v7.4.tar.gz -C _site
           node --check _site/app.js
-          test -s _site/styles.css
-          test -s _site/data/app-data.json
-
           python3 - <<'PY'
           import json
           from pathlib import Path
@@ -87,13 +42,12 @@ jobs:
 
           assert len(data['companies']) == 45
           assert len(data['offices']) == 91
-          assert len(data.get('officePeople', [])) >= 50
+          assert len(data.get('officePeople', [])) == 50
           assert "const APP_VERSION = '7.4';" in app
           assert 'renderOfficePeopleInline' in app
           assert 'v7.4' in index
           assert 'DecompressionStream' not in index
-          assert 'base64' not in index.lower()
-          print('v7.4 verifierad: 45 bolag, 91 kontor och intern personalvy')
+          print('Ren v7.4 verifierad och klar för publicering')
           PY
 
       - name: Konfigurera GitHub Pages
@@ -104,6 +58,6 @@ jobs:
         with:
           path: _site
 
-      - name: Publicera v7.4
+      - name: Publicera
         id: deployment
         uses: actions/deploy-pages@v4

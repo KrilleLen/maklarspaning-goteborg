@@ -1,52 +1,19 @@
 # Mäklarspaning Göteborg
 
-Installerbar PWA för bolagsjämförelse, kontorsmappning och rekryteringsspaning bland mäklarfirmor i Göteborg. **EO Franchise Göteborg 21 AB** är fast benchmark.
+Produktionspaket för delägarnas konkurrent- och rekryteringsradar.
 
-## Funktioner
+## Publicering
 
-- jämför omsättning, resultat, marginal, omsättning/anställd och vinst/anställd
-- sortering, filtrering, bolagsdetaljer och export till CSV
-- kontorsmappning mot juridiska bolag med markerad säkerhetsnivå
-- publika länkar och personstickprov från Booli/Hittamäklare
-- bolagsbaserad rekryteringssignal med tydlig metodförklaring
-- lokal kandidatpipeline med status, anteckningar, export och import
-- installerbar på hemskärm och tillgänglig offline efter första besöket
-- automatisk publicering med GitHub Pages
+GitHub Actions packar upp `site-v7.4.tar.gz`, verifierar JavaScript och datamängder och publicerar därefter vanliga webbfiler till GitHub Pages.
 
-## Appadress
+Kontrollerad version:
 
-Appen publiceras automatiskt på:
+- Appversion: 7.4
+- 45 juridiska bolag
+- 91 kontorskopplingar
+- 50 verifierade personposter i nuvarande personregister
+- SHA-256 för webbpaketet: `06dd027243df7eb1319c90cb5fee36ea6ab122781f2141b81f29823bcdc72fe7`
 
-```text
-https://krillelen.github.io/maklarspaning-goteborg/
-```
+Den publika appen finns på:
 
-Senast triggat för publicering: 2026-07-24.
-
-## Installera på iPhone
-
-1. Öppna appadressen i Safari.
-2. Tryck på dela-symbolen.
-3. Välj **Lägg till på hemskärmen**.
-
-På Android och dator visas knappen **Installera app** när webbläsaren stöder installation.
-
-## Data och integritet
-
-- Ekonomisnapshot: 2026-07-24.
-- Bokslutsår kan skilja mellan bolag.
-- Personnamn är publika yrkesuppgifter och inte kompletta personalregister.
-- Kandidatanteckningar sparas endast i webbläsarens `localStorage` på den aktuella enheten.
-- Rekryteringssignalen gäller bolagets offentliga nyckeltal och poängsätter inte individer.
-
-## Lokal test
-
-```bash
-python3 -m http.server 8080
-```
-
-Öppna sedan `http://localhost:8080`.
-
-## Uppdatera data
-
-Appens snapshot ligger i `data/app-data.json`. Behåll samma fältnamn när data uppdateras. Byt även cacheversion i `sw.js` för att tvinga installerade appar att hämta den nya snapshoten.
+`https://krillelen.github.io/maklarspaning-goteborg/`
