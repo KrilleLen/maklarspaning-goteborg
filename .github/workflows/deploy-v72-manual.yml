@@ -1,0 +1,61 @@
+name: PUBLICERA V7.2 NU
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-v72-manual
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Publicera v7.2
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Hämta repositoryt
+        uses: actions/checkout@v4
+
+      - name: Förbered exakt version 7.2
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p _site/v72 _site/icons
+
+          cp index.html _site/index.html
+          cp latest.html _site/latest.html
+          cp manifest.webmanifest _site/manifest.webmanifest
+          cp favicon.svg _site/favicon.svg
+          cp sw.js _site/sw.js
+          cp -r icons/. _site/icons/
+          cp v72/styles.css.gz.b64 _site/v72/styles.css.gz.b64
+          cp v72/app.direct.js.gz.b64.s* _site/v72/
+          cp v72/app-data.json.gz.b64.s* _site/v72/
+          touch _site/.nojekyll
+
+          test "$(find _site/v72 -name 'app.direct.js.gz.b64.s*' | wc -l | tr -d ' ')" = "8"
+          test "$(find _site/v72 -name 'app-data.json.gz.b64.s*' | wc -l | tr -d ' ')" = "5"
+          grep -q 'content="7.2"' _site/index.html
+          grep -q 'v7.2' _site/index.html
+
+          echo "Version 7.2 är komplett och redo för publicering."
+
+      - name: Konfigurera GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Skapa Pages-paket
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+      - name: Publicera v7.2
+        id: deployment
+        uses: actions/deploy-pages@v4
