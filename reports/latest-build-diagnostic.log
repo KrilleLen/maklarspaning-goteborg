@@ -1,14 +1,8 @@
 + mkdir -p _site
-+ cat package/app.zip.b64.part00 package/app.zip.b64.part01 package/app.zip.b64.part02 package/app.zip.b64.part03 package/app.zip.b64.part04 package/app.zip.b64.part05 package/app.zip.b64.part06 package/app.zip.b64.part07 package/app.zip.b64.part08
-+ base64 --decode
-+ sha256sum app.zip
-08a0407a01fc094c894798facefbbf2494228c0586e765378ba6d5a1ff8746ac  app.zip
-+ echo '08a0407a01fc094c894798facefbbf2494228c0586e765378ba6d5a1ff8746ac  app.zip'
-+ sha256sum --check
-app.zip: OK
++ python3 scripts/decode_parts.py 'package/app.zip.b64.part*' app.zip 08a0407a01fc094c894798facefbbf2494228c0586e765378ba6d5a1ff8746ac
+app.zip: OK (joined-base64-stream, 9 delar, 73602 byte)
 + unzip -q app.zip -d _site
 + echo LAYER_BASE_OK
 LAYER_BASE_OK
-+ cat overlays/v4/overlay.tar.xz.b64.part00 overlays/v4/overlay.tar.xz.b64.part01
-+ base64 --decode
-base64: invalid input
++ python3 scripts/decode_parts.py 'overlays/v4/overlay.tar.xz.b64.part*' overlay-v4.tar.xz 23dbb54db029d7e0db8eac45267e94bf65602fce6787904c09ca094d0f68b398
+no decoded candidate matched 23dbb54db029d7e0db8eac45267e94bf65602fce6787904c09ca094d0f68b398; all decoding attempts failed
