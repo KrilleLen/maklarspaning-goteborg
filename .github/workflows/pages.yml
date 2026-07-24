@@ -35,7 +35,11 @@ jobs:
             release-v7.4/site.b64.part01 \
             release-v7.4/site.b64.part02-03 \
             release-v7.4/site.b64.part04-05 \
-            release-v7.4/site.b64.part06-07 \
+            release-v7.4/tail00 \
+            release-v7.4/tail01 \
+            release-v7.4/tail02 \
+            release-v7.4/tail03 \
+            release-v7.4/tail04 \
             | tr -d '\r\n\t ' \
             | base64 --decode > site-v7.4-verified.tar.gz
 
