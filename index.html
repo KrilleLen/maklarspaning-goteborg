@@ -2,7 +2,11 @@
 <html lang="sv">
 <head>
   <meta charset="utf-8">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="app-version" content="7.2">
   <meta name="theme-color" content="#0b1724">
   <meta name="description" content="Professionell bolags- och rekryteringsspaning för mäklarfirmor i Göteborg, med EO Franchise Göteborg 21 AB som benchmark.">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -10,8 +14,7 @@
   <meta name="apple-mobile-web-app-title" content="Mäklarspaning">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="icons/icon.svg">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
   <title>Mäklarspaning Göteborg</title>
 </head>
 <body>
@@ -23,7 +26,7 @@
       <div class="brand-mark" aria-hidden="true">M</div>
       <div>
         <p class="eyebrow">Konkurrent- och rekryteringsradar</p>
-        <h1>Mäklarspaning <span>Göteborg</span></h1>
+        <div class="title-line"><h1>Mäklarspaning <span>Göteborg</span></h1><span class="version-badge">v7.2</span></div>
       </div>
     </div>
     <div class="top-actions">
@@ -80,6 +83,57 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <noscript>Appen kräver JavaScript för filtrering, jämförelser och lokal rekryteringspipeline.</noscript>
-  <script src="app.js" defer></script>
+  <script>
+  (async () => {
+    const BUILD = '7.2-direct-20260724-2120';
+    const fetchJoined = async (paths) => {
+      const parts = await Promise.all(paths.map(async (path) => {
+        const response = await fetch(`${path}?v=${BUILD}`, { cache: 'no-store' });
+        if (!response.ok) throw new Error(`${path}: ${response.status}`);
+        return (await response.text()).replace(/\s+/g, '');
+      }));
+      return parts.join('');
+    };
+    const decodeGzip = async (paths) => {
+      const b64 = await fetchJoined(Array.isArray(paths) ? paths : [paths]);
+      const binary = atob(b64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      if (!('DecompressionStream' in window)) throw new Error('Webbläsaren saknar stöd för uppdateringsmotorn. Öppna i senaste Safari.');
+      const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+      return new Response(stream).text();
+    };
+    try {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(reg => reg.unregister()));
+      }
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(key => caches.delete(key)));
+      }
+      const appParts = Array.from({ length: 8 }, (_, index) => `v72/app.direct.js.gz.b64.s${index + 1}`);
+      const dataParts = Array.from({ length: 5 }, (_, index) => `v72/app-data.json.gz.b64.s${index + 1}`);
+      const [css, dataText, appCode] = await Promise.all([
+        decodeGzip('v72/styles.css.gz.b64'),
+        decodeGzip(dataParts),
+        decodeGzip(appParts)
+      ]);
+      const style = document.createElement('style');
+      style.textContent = css;
+      document.head.appendChild(style);
+      window.__APP_DATA__ = JSON.parse(dataText);
+      (0, eval)(appCode + '\n//# sourceURL=maklarspaning-v7.2.js');
+    } catch (error) {
+      console.error(error);
+      document.querySelector('#appLoading')?.setAttribute('hidden', '');
+      const box = document.querySelector('#appError');
+      if (box) {
+        box.hidden = false;
+        box.innerHTML = `<h2>Appen kunde inte uppdateras</h2><p>${String(error.message || error)}</p><p>Öppna länken i Safari och ladda om sidan.</p>`;
+      }
+    }
+  })();
+  </script>
 </body>
 </html>
