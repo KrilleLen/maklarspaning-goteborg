@@ -1,0 +1,154 @@
+name: Personalgranskning v7
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/people-audit-v7.yml'
+      - 'bundles/v7/**'
+      - 'scripts/decode_parts.py'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: people-audit-v7
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Hämta projektet
+        uses: actions/checkout@v4
+
+      - name: Markera att granskningen har startat
+        run: |
+          mkdir -p reports
+          python3 - <<'PY'
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+          Path('reports/latest-v7-audit-status.json').write_text(json.dumps({
+              'generatedAt': datetime.now(timezone.utc).isoformat(),
+              'state': 'running',
+              'message': 'Bygger version 7 och granskar samtliga 91 kontor.'
+          }, ensure_ascii=False, indent=2), encoding='utf-8')
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add reports/latest-v7-audit-status.json
+          git commit -m "Personalgranskning v7 startad [skip ci]"
+          git pull --rebase origin main
+          git push
+
+      - name: Bygg komplett version 7
+        run: |
+          mkdir -p _site
+          python3 scripts/decode_parts.py \
+            'bundles/v7/maklarspaning-v7-full.tar.xz.b64.part*' \
+            maklarspaning-v7-full.tar.xz \
+            512de2ad98c292283cc36406b12edb28a3c35fbe527e7373d87da9a283a5fda0
+          tar -xJf maklarspaning-v7-full.tar.xz -C _site
+          node --check _site/app.js
+          python3 -m py_compile _site/scripts/update_people.py
+
+      - name: Hämta och matcha publika personallistor
+        id: scrape
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          python3 -m pip install --disable-pip-version-check --quiet requests beautifulsoup4 lxml 2>&1 | tee /tmp/v7-audit.log
+          python3 _site/scripts/update_people.py \
+            _site/data/app-data.json \
+            --report _site/data/people-report.json \
+            2>&1 | tee -a /tmp/v7-audit.log
+
+      - name: Verifiera täckning
+        id: validate
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          python3 - <<'PY' 2>&1 | tee -a /tmp/v7-audit.log
+          import json
+          from pathlib import Path
+          data = json.loads(Path('_site/data/app-data.json').read_text())
+          report = json.loads(Path('_site/data/people-report.json').read_text())
+          coverage = report['coverage']
+          assert len(data['companies']) == 45
+          assert len(data['offices']) == 91
+          assert coverage['officeCount'] == 91
+          assert coverage['officeAssignments'] >= 50
+          assert all(office.get('peopleStatus') for office in data['offices'])
+          assert all('peopleCount' in office for office in data['offices'])
+          print(json.dumps(coverage, ensure_ascii=False, indent=2))
+          PY
+
+      - name: Spara slutrapport
+        if: always()
+        env:
+          SCRAPE_OUTCOME: ${{ steps.scrape.outcome }}
+          VALIDATE_OUTCOME: ${{ steps.validate.outcome }}
+        run: |
+          mkdir -p reports
+          cp /tmp/v7-audit.log reports/latest-v7-people-audit.log 2>/dev/null || true
+          python3 - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          scrape = os.environ.get('SCRAPE_OUTCOME')
+          validate = os.environ.get('VALIDATE_OUTCOME')
+          state = 'completed' if scrape == 'success' and validate == 'success' else 'failed'
+          status = {
+              'generatedAt': datetime.now(timezone.utc).isoformat(),
+              'state': state,
+              'scrapeOutcome': scrape,
+              'validateOutcome': validate,
+              'reportCreated': Path('_site/data/people-report.json').exists(),
+              'dataCreated': Path('_site/data/app-data.json').exists(),
+          }
+          Path('reports/latest-v7-audit-status.json').write_text(
+              json.dumps(status, ensure_ascii=False, indent=2), encoding='utf-8'
+          )
+
+          if Path('_site/data/people-report.json').exists():
+              report_text = Path('_site/data/people-report.json').read_text(encoding='utf-8')
+              Path('reports/latest-v7-people-report.json').write_text(report_text, encoding='utf-8')
+
+          if Path('_site/data/app-data.json').exists():
+              data = json.loads(Path('_site/data/app-data.json').read_text())
+              snapshot = {
+                  'generatedAt': data.get('meta', {}).get('peopleUpdatedAt'),
+                  'coverage': data.get('peopleCoverage', {}),
+                  'offices': [{
+                      'id': o.get('id'), 'brand': o.get('brand'), 'office': o.get('office'),
+                      'peopleStatus': o.get('peopleStatus'), 'peopleCount': o.get('peopleCount', 0),
+                      'brokerCount': o.get('brokerCount', 0), 'staffCount': o.get('staffCount', 0),
+                      'peopleNote': o.get('peopleNote')
+                  } for o in data.get('offices', [])],
+                  'officePeople': data.get('officePeople', []),
+                  'unassignedPeople': data.get('unassignedPeople', []),
+              }
+              Path('reports/latest-v7-people-snapshot.json').write_text(
+                  json.dumps(snapshot, ensure_ascii=False, indent=2), encoding='utf-8'
+              )
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add reports/latest-v7-*
+          git commit -m "Spara personalgranskning v7 [skip ci]" || true
+          git pull --rebase origin main
+          git push
+
+      - name: Stoppa vid misslyckad granskning
+        if: always()
+        env:
+          SCRAPE_OUTCOME: ${{ steps.scrape.outcome }}
+          VALIDATE_OUTCOME: ${{ steps.validate.outcome }}
+        run: |
+          test "$SCRAPE_OUTCOME" = "success"
+          test "$VALIDATE_OUTCOME" = "success"
