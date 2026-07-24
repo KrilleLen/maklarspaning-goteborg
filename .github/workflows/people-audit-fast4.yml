@@ -1,0 +1,107 @@
+name: Snabb personalgranskning v7 – körning 4
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/people-audit-fast4.yml'
+      - 'scripts/patch_people_engine.py'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: people-audit-fast4
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bygg och korrigera version 7
+        run: |
+          mkdir -p _site
+          python3 scripts/decode_parts.py \
+            'bundles/v7/maklarspaning-v7-full.tar.xz.b64.part*' \
+            /tmp/v7.tar.xz \
+            512de2ad98c292283cc36406b12edb28a3c35fbe527e7373d87da9a283a5fda0
+          tar -xJf /tmp/v7.tar.xz -C _site
+          python3 scripts/patch_people_engine.py _site/scripts/update_people.py
+          sed -i 's/TIMEOUT = 25/TIMEOUT = 8/' _site/scripts/update_people.py
+          sed -i 's/RETRIES = 2/RETRIES = 0/' _site/scripts/update_people.py
+          sed -i 's/MAX_WORKERS = 5/MAX_WORKERS = 12/' _site/scripts/update_people.py
+          node --check _site/app.js
+          python3 -m py_compile _site/scripts/update_people.py
+
+      - name: Hämta och matcha publika personallistor
+        id: scrape
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          python3 -m pip install --disable-pip-version-check --quiet requests beautifulsoup4 lxml 2>&1 | tee /tmp/fast4.log
+          python3 _site/scripts/update_people.py \
+            _site/data/app-data.json \
+            --report _site/data/people-report.json \
+            2>&1 | tee -a /tmp/fast4.log
+
+      - name: Spara rapport
+        if: always()
+        env:
+          SCRAPE_OUTCOME: ${{ steps.scrape.outcome }}
+        run: |
+          mkdir -p reports
+          cp /tmp/fast4.log reports/latest-v7-fast4-audit.log 2>/dev/null || true
+          python3 - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          status = {
+              'generatedAt': datetime.now(timezone.utc).isoformat(),
+              'state': 'failed',
+              'scrapeOutcome': os.environ.get('SCRAPE_OUTCOME'),
+              'reportCreated': Path('_site/data/people-report.json').exists(),
+          }
+
+          if Path('_site/data/people-report.json').exists() and Path('_site/data/app-data.json').exists():
+              data = json.loads(Path('_site/data/app-data.json').read_text())
+              report = json.loads(Path('_site/data/people-report.json').read_text())
+              coverage = report['coverage']
+              assert len(data['offices']) == 91
+              assert coverage['officeCount'] == 91
+              assert all(office.get('peopleStatus') for office in data['offices'])
+              assert all('peopleCount' in office for office in data['offices'])
+              status['state'] = 'completed'
+              status['coverage'] = coverage
+              Path('reports/latest-v7-fast4-report.json').write_text(
+                  json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8'
+              )
+              Path('reports/latest-v7-fast4-snapshot.json').write_text(
+                  json.dumps({
+                      'generatedAt': data.get('meta', {}).get('peopleUpdatedAt'),
+                      'coverage': data.get('peopleCoverage', {}),
+                      'offices': data.get('offices', []),
+                      'officePeople': data.get('officePeople', []),
+                      'unassignedPeople': data.get('unassignedPeople', []),
+                  }, ensure_ascii=False, indent=2), encoding='utf-8'
+              )
+
+          Path('reports/latest-v7-fast4-status.json').write_text(
+              json.dumps(status, ensure_ascii=False, indent=2), encoding='utf-8'
+          )
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add reports/latest-v7-fast4-*
+          git commit -m "Spara snabb personalgranskning v7 körning 4 [skip ci]" || true
+          git pull --rebase origin main
+          git push
+
+      - name: Stoppa om rapport saknas
+        if: always()
+        run: test -f reports/latest-v7-fast4-report.json
