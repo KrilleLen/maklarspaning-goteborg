@@ -1,36 +1,22 @@
-const CACHE = 'maklarspaning-v1-20260724';
-const CORE = [
-  './',
-  './index.html',
-  './styles.css',
-  './app.js',
-  './manifest.webmanifest',
-  './favicon.svg',
-  './icons/icon.svg',
-  './data/app-data.json'
-];
+const VERSION = 'maklarspaning-self-destruct-v7-2';
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(CORE)).then(() => self.skipWaiting()));
+  event.waitUntil(self.skipWaiting());
 });
 
 self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key))))
-      .then(() => self.clients.claim())
-  );
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.map(key => caches.delete(key)));
+    await self.clients.claim();
+    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    await Promise.all(clients.map(client => client.navigate('./latest.html?v=7.2')));
+    await self.registration.unregister();
+  })());
 });
 
 self.addEventListener('fetch', event => {
-  if (event.request.method !== 'GET') return;
-  event.respondWith(
-    fetch(event.request)
-      .then(response => {
-        const copy = response.clone();
-        caches.open(CACHE).then(cache => cache.put(event.request, copy));
-        return response;
-      })
-      .catch(() => caches.match(event.request).then(hit => hit || caches.match('./index.html')))
-  );
+  if (event.request.method === 'GET') {
+    event.respondWith(fetch(event.request, { cache: 'no-store' }));
+  }
 });
