@@ -1,4 +1,4 @@
-name: PUBLICERA V7.2.1 NU
+name: PUBLICERA V7.3 NU
 
 on:
   workflow_dispatch:
@@ -9,12 +9,12 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages-v721-manual
+  group: pages-v73-manual
   cancel-in-progress: true
 
 jobs:
   deploy:
-    name: Publicera v7.2.1
+    name: Publicera v7.3
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -24,33 +24,57 @@ jobs:
       - name: Hämta repositoryt
         uses: actions/checkout@v4
 
-      - name: Förbered Safari-fixen v7.2.1
+      - name: Bygg vanliga webbfiler utan Base64 i Safari
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p _site/v72 _site/icons
+          mkdir -p _site/data _site/icons
 
           cp index.html _site/index.html
+          cp index.html _site/404.html
           cp latest.html _site/latest.html
           cp manifest.webmanifest _site/manifest.webmanifest
           cp favicon.svg _site/favicon.svg
           cp sw.js _site/sw.js
           cp -r icons/. _site/icons/
-          cp v72/styles.css.gz.b64 _site/v72/styles.css.gz.b64
-          cp v72/app.direct.js.gz.b64.s* _site/v72/
-          cp v72/app-data.json.gz.b64.s* _site/v72/
           touch _site/.nojekyll
 
-          test "$(find _site/v72 -name 'app.direct.js.gz.b64.s*' | wc -l | tr -d ' ')" = "8"
-          test "$(find _site/v72 -name 'app-data.json.gz.b64.s*' | wc -l | tr -d ' ')" = "5"
-          grep -q 'content="7.2.1"' _site/index.html
-          grep -q 'base64Bytes' _site/index.html
-          if grep -q 'atob(' _site/index.html; then
-            echo "Gamla Safari-känsliga atob-laddaren finns kvar"
-            exit 1
-          fi
+          cat v72/styles.css.gz.b64 \
+            | tr -d '\r\n\t ' \
+            | base64 --decode \
+            | gzip --decompress --stdout > _site/styles.css
 
-          echo "Version 7.2.1 är komplett och redo för publicering."
+          cat v72/app.direct.js.gz.b64.s* \
+            | tr -d '\r\n\t ' \
+            | base64 --decode \
+            | gzip --decompress --stdout > _site/app.js
+
+          cat v72/app-data.json.gz.b64.s* \
+            | tr -d '\r\n\t ' \
+            | base64 --decode \
+            | gzip --decompress --stdout > _site/data/app-data.json
+
+          sed -i "s/const APP_VERSION = '7.2';/const APP_VERSION = '7.3';/" _site/app.js
+
+          node --check _site/app.js
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          data = json.loads(Path('_site/data/app-data.json').read_text())
+          app = Path('_site/app.js').read_text()
+          index = Path('_site/index.html').read_text()
+
+          assert len(data['companies']) == 45
+          assert len(data['offices']) == 91
+          assert len(data.get('officePeople', [])) >= 50
+          assert "const APP_VERSION = '7.3'" in app
+          assert 'renderOfficePeopleInline' in app
+          assert 'v7.3' in index
+          assert 'DecompressionStream' not in index
+          assert 'base64' not in index.lower()
+          print('Version 7.3 verifierad: vanliga filer, ingen komprimering i Safari')
+          PY
 
       - name: Konfigurera GitHub Pages
         uses: actions/configure-pages@v5
@@ -60,6 +84,6 @@ jobs:
         with:
           path: _site
 
-      - name: Publicera v7.2.1
+      - name: Publicera v7.3
         id: deployment
         uses: actions/deploy-pages@v4
