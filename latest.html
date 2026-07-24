@@ -11,7 +11,7 @@
   </style>
 </head>
 <body>
-  <main><strong>Uppdaterar till v7.2</strong><div class="loader"></div><p>Tar bort den gamla offlineversionen…</p></main>
+  <main><strong>Uppdaterar till v7.2.1</strong><div class="loader"></div><p>Tar bort den gamla offlineversionen…</p></main>
   <script>
   (async()=>{
     try {
@@ -24,7 +24,7 @@
         await Promise.all(keys.map(key => caches.delete(key)));
       }
     } finally {
-      location.replace('./?v=7.2-direct-20260724-2120');
+      location.replace('./?v=7.2.1-safari-fix');
     }
   })();
   </script>
