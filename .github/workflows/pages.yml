@@ -31,11 +31,11 @@ jobs:
           echo "08a0407a01fc094c894798facefbbf2494228c0586e765378ba6d5a1ff8746ac  app.zip" | sha256sum --check
           unzip -q app.zip -d _site
 
-      - name: Lägg på delägarversion v3
+      - name: Lägg på kontorspersonal v4
         run: |
-          cat overlays/v3/overlay.tar.xz.b64.part* | base64 --decode > overlay-v3.tar.xz
-          echo "723dd696a3736c85075def298189461b1a967cdb9457ff9bd3ca3bc94a5aa5af  overlay-v3.tar.xz" | sha256sum --check
-          tar -xJf overlay-v3.tar.xz -C _site
+          cat overlays/v4/overlay.tar.xz.b64.part* | base64 --decode > overlay-v4.tar.xz
+          echo "23dbb54db029d7e0db8eac45267e94bf65602fce6787904c09ca094d0f68b398  overlay-v4.tar.xz" | sha256sum --check
+          tar -xJf overlay-v4.tar.xz -C _site
           node --check _site/app.js
           python3 - <<'PY'
           import json
@@ -50,16 +50,26 @@ jobs:
           eo = next(row for row in data['companies'] if row.get('isOwn'))
           assert len(eo.get('history', [])) == 5
 
+          exact = [o for o in data['offices'] if o.get('staffScope') == 'office']
+          assert len(exact) >= 39
+          fastighetsbyran = [o for o in data['offices'] if o.get('brand') == 'Fastighetsbyrån']
+          assert len(fastighetsbyran) == 18
+          assert all(o.get('staffScope') == 'office' and o.get('staffUrl') for o in fastighetsbyran)
+
           app = Path('_site/app.js').read_text()
           for phrase in [
               'Vad kräver vår uppmärksamhet?',
               'Kontor under press',
               'Områdesradar',
               'Rekryteringsscore',
+              'Kontorsspecifik personlista',
+              'Kedjans personal',
           ]:
               assert phrase in app
 
-          print('Delägarversion v3 godkänd')
+          sw = Path('_site/sw.js').read_text()
+          assert 'maklarspaning-v4-20260724' in sw
+          print('Kontorspersonal v4 godkänd: 39 kontorsspecifika länkar')
           PY
           rm -rf _site/.github _site/source _site/package _site/overlays
 
