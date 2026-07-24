@@ -6,7 +6,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="app-version" content="7.2">
+  <meta name="app-version" content="7.2.1">
   <meta name="theme-color" content="#0b1724">
   <meta name="description" content="Professionell bolags- och rekryteringsspaning för mäklarfirmor i Göteborg, med EO Franchise Göteborg 21 AB som benchmark.">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -26,7 +26,7 @@
       <div class="brand-mark" aria-hidden="true">M</div>
       <div>
         <p class="eyebrow">Konkurrent- och rekryteringsradar</p>
-        <div class="title-line"><h1>Mäklarspaning <span>Göteborg</span></h1><span class="version-badge">v7.2</span></div>
+        <div class="title-line"><h1>Mäklarspaning <span>Göteborg</span></h1><span class="version-badge">v7.2.1</span></div>
       </div>
     </div>
     <div class="top-actions">
@@ -85,7 +85,7 @@
   <noscript>Appen kräver JavaScript för filtrering, jämförelser och lokal rekryteringspipeline.</noscript>
   <script>
   (async () => {
-    const BUILD = '7.2-direct-20260724-2120';
+    const BUILD = '7.2.1-direct-20260724-2205';
     const fetchJoined = async (paths) => {
       const parts = await Promise.all(paths.map(async (path) => {
         const response = await fetch(`${path}?v=${BUILD}`, { cache: 'no-store' });
@@ -94,11 +94,29 @@
       }));
       return parts.join('');
     };
+    const base64Bytes = (input) => {
+      const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+      const clean = String(input).replace(/[^A-Za-z0-9+/=]/g, '');
+      const output = [];
+      let buffer = 0;
+      let bits = 0;
+      for (const char of clean) {
+        if (char === '=') break;
+        const value = alphabet.indexOf(char);
+        if (value < 0) continue;
+        buffer = (buffer << 6) | value;
+        bits += 6;
+        if (bits >= 8) {
+          bits -= 8;
+          output.push((buffer >> bits) & 255);
+        }
+      }
+      return new Uint8Array(output);
+    };
     const decodeGzip = async (paths) => {
       const b64 = await fetchJoined(Array.isArray(paths) ? paths : [paths]);
-      const binary = atob(b64);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const bytes = base64Bytes(b64);
+      if (!bytes.length) throw new Error('Den hämtade appfilen var tom.');
       if (!('DecompressionStream' in window)) throw new Error('Webbläsaren saknar stöd för uppdateringsmotorn. Öppna i senaste Safari.');
       const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
       return new Response(stream).text();
@@ -123,7 +141,7 @@
       style.textContent = css;
       document.head.appendChild(style);
       window.__APP_DATA__ = JSON.parse(dataText);
-      (0, eval)(appCode + '\n//# sourceURL=maklarspaning-v7.2.js');
+      (0, eval)(appCode + '\n//# sourceURL=maklarspaning-v7.2.1.js');
     } catch (error) {
       console.error(error);
       document.querySelector('#appLoading')?.setAttribute('hidden', '');
