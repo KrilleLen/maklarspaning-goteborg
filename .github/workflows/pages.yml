@@ -1,9 +1,8 @@
-name: Publicera GitHub Pages
+name: Publicera Mäklarspaning v7.4
 
 on:
   push:
     branches: [main]
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -16,22 +15,44 @@ concurrency:
 
 jobs:
   deploy:
-    name: Publicera ren v7.4
+    name: Verifiera och publicera v7.4
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+
     steps:
       - name: Hämta repositoryt
         uses: actions/checkout@v4
 
-      - name: Packa upp den verifierade webbappen
+      - name: Återskapa verifierad release
         shell: bash
         run: |
           set -euo pipefail
+
+          cat \
+            release-v7.4/site.b64.part00 \
+            release-v7.4/site.b64.part01 \
+            release-v7.4/site.b64.part02-03 \
+            release-v7.4/site.b64.part04-05 \
+            release-v7.4/site.b64.part06-07 \
+            | tr -d '\r\n\t ' \
+            | base64 --decode > site-v7.4-verified.tar.gz
+
+          echo "06dd027243df7eb1319c90cb5fee36ea6ab122781f2141b81f29823bcdc72fe7  site-v7.4-verified.tar.gz" \
+            | sha256sum --check --strict
+
           mkdir -p _site
-          tar -xzf site-v7.4.tar.gz -C _site
+          tar -xzf site-v7.4-verified.tar.gz -C _site
+
+      - name: Kontrollera appen
+        shell: bash
+        run: |
+          set -euo pipefail
           node --check _site/app.js
+          test -s _site/styles.css
+          test -s _site/data/app-data.json
+
           python3 - <<'PY'
           import json
           from pathlib import Path
@@ -47,7 +68,8 @@ jobs:
           assert 'renderOfficePeopleInline' in app
           assert 'v7.4' in index
           assert 'DecompressionStream' not in index
-          print('Ren v7.4 verifierad och klar för publicering')
+          assert 'Incomplete compressed input' not in index
+          print('Mäklarspaning v7.4 är verifierad och redo för publicering')
           PY
 
       - name: Konfigurera GitHub Pages
