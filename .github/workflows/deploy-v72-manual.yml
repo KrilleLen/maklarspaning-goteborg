@@ -1,4 +1,4 @@
-name: PUBLICERA V7.2 NU
+name: PUBLICERA V7.2.1 NU
 
 on:
   workflow_dispatch:
@@ -9,12 +9,12 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages-v72-manual
+  group: pages-v721-manual
   cancel-in-progress: true
 
 jobs:
   deploy:
-    name: Publicera v7.2
+    name: Publicera v7.2.1
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -24,7 +24,7 @@ jobs:
       - name: Hämta repositoryt
         uses: actions/checkout@v4
 
-      - name: Förbered exakt version 7.2
+      - name: Förbered Safari-fixen v7.2.1
         shell: bash
         run: |
           set -euo pipefail
@@ -43,10 +43,14 @@ jobs:
 
           test "$(find _site/v72 -name 'app.direct.js.gz.b64.s*' | wc -l | tr -d ' ')" = "8"
           test "$(find _site/v72 -name 'app-data.json.gz.b64.s*' | wc -l | tr -d ' ')" = "5"
-          grep -q 'content="7.2"' _site/index.html
-          grep -q 'v7.2' _site/index.html
+          grep -q 'content="7.2.1"' _site/index.html
+          grep -q 'base64Bytes' _site/index.html
+          if grep -q 'atob(' _site/index.html; then
+            echo "Gamla Safari-känsliga atob-laddaren finns kvar"
+            exit 1
+          fi
 
-          echo "Version 7.2 är komplett och redo för publicering."
+          echo "Version 7.2.1 är komplett och redo för publicering."
 
       - name: Konfigurera GitHub Pages
         uses: actions/configure-pages@v5
@@ -56,6 +60,6 @@ jobs:
         with:
           path: _site
 
-      - name: Publicera v7.2
+      - name: Publicera v7.2.1
         id: deployment
         uses: actions/deploy-pages@v4
