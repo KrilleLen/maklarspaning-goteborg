@@ -1,5 +1,9 @@
 {
-  "generatedAt": "2026-07-24T19:09:08.064961+00:00",
-  "state": "running",
-  "message": "Bygger version 7 och granskar samtliga 91 kontor."
+  "generatedAt": "2026-07-24T19:09:10.060365+00:00",
+  "state": "failed",
+  "buildOutcome": "skipped",
+  "scrapeOutcome": "skipped",
+  "validateOutcome": "skipped",
+  "reportCreated": false,
+  "dataCreated": false
 }
