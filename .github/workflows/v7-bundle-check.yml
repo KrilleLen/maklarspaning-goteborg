@@ -1,0 +1,51 @@
+name: Kontrollera v7-paketet
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/v7-bundle-check.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verifiera och packa upp
+        id: verify
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          {
+            set -eux
+            ls -l bundles/v7/maklarspaning-v7-full.tar.xz.b64.part*
+            git hash-object bundles/v7/maklarspaning-v7-full.tar.xz.b64.part*
+            python3 scripts/decode_parts.py \
+              'bundles/v7/maklarspaning-v7-full.tar.xz.b64.part*' \
+              /tmp/v7.tar.xz \
+              512de2ad98c292283cc36406b12edb28a3c35fbe527e7373d87da9a283a5fda0
+            sha256sum /tmp/v7.tar.xz
+            mkdir /tmp/v7-site
+            tar -xJf /tmp/v7.tar.xz -C /tmp/v7-site
+            node --check /tmp/v7-site/app.js
+            python3 -m py_compile /tmp/v7-site/scripts/update_people.py
+            find /tmp/v7-site -maxdepth 2 -type f | sort
+          } 2>&1 | tee /tmp/v7-bundle-check.log
+      - name: Spara resultat
+        if: always()
+        env:
+          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
+        run: |
+          mkdir -p reports
+          cp /tmp/v7-bundle-check.log reports/latest-v7-bundle-check.log 2>/dev/null || true
+          printf '{\n  "verifyOutcome": "%s"\n}\n' "$VERIFY_OUTCOME" > reports/latest-v7-bundle-check-status.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add reports/latest-v7-bundle-check*
+          git commit -m "Spara kontroll av v7-paket [skip ci]" || true
+          git pull --rebase origin main
+          git push
