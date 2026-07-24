@@ -22,48 +22,28 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     steps:
       - name: Hämta projektet
         uses: actions/checkout@v4
 
-      - name: Bygg tidigare stabil version
+      - name: Bygg komplett version 7
         run: |
           mkdir -p _site
-          cat package/app.zip.b64.part* | base64 --decode > app.zip
-          echo "08a0407a01fc094c894798facefbbf2494228c0586e765378ba6d5a1ff8746ac  app.zip" | sha256sum --check
-          unzip -q app.zip -d _site
-
-          cat overlays/v4/overlay.tar.xz.b64.part* | base64 --decode > overlay-v4.tar.xz
-          echo "23dbb54db029d7e0db8eac45267e94bf65602fce6787904c09ca094d0f68b398  overlay-v4.tar.xz" | sha256sum --check
-          tar -xJf overlay-v4.tar.xz -C _site
-
-          base64 --decode overlays/v5/v5.patch.xz.b64 > v5.patch.xz
-          echo "9347999733eea24f7aa140b718651f736217cf0b53249f8bff9fe530159f4f1f  v5.patch.xz" | sha256sum --check
-          xz -dc v5.patch.xz > v5.patch
-          (cd _site && patch -p1 < ../v5.patch)
-
-          cat overlays/v6/overlay.tar.xz.b64.part* | base64 --decode > overlay-v6.tar.xz
-          echo "33fcaec02492dd969ef003497ccfdf3b583ce418a75f98bc837e4659d148234e  overlay-v6.tar.xz" | sha256sum --check
-          tar -xJf overlay-v6.tar.xz -C _site
-
-          base64 --decode overlays/v6/v61.patch.xz.b64 > v61.patch.xz
-          echo "09147b34c9da75b42eb54d9199b1dd6357619121220052e737b135049dbd93e3  v61.patch.xz" | sha256sum --check
-          xz -dc v61.patch.xz > v61.patch
-          (cd _site && patch -p1 < ../v61.patch)
-
-      - name: Lägg på fullimport v7
-        run: |
-          base64 --decode overlays/v7/v7.patch.xz.b64 > v7.patch.xz
-          echo "7294e4bf284ff2d76ae0eeac618f1cefe3d5c89d4d5315c60cd0b6b38ce0ab71  v7.patch.xz" | sha256sum --check
-          xz -dc v7.patch.xz > v7.patch
-          (cd _site && patch -p1 < ../v7.patch)
+          python3 scripts/decode_parts.py \
+            'bundles/v7/maklarspaning-v7-full.tar.xz.b64.part*' \
+            maklarspaning-v7-full.tar.xz \
+            512de2ad98c292283cc36406b12edb28a3c35fbe527e7373d87da9a283a5fda0
+          tar -xJf maklarspaning-v7-full.tar.xz -C _site
           node --check _site/app.js
+          python3 -m py_compile _site/scripts/update_people.py
 
       - name: Hämta personal för samtliga 91 kontor
-        timeout-minutes: 35
         run: |
           python3 -m pip install --disable-pip-version-check --quiet requests beautifulsoup4 lxml
-          python3 _site/scripts/update_people.py _site/data/app-data.json --report _site/data/people-report.json
+          python3 _site/scripts/update_people.py \
+            _site/data/app-data.json \
+            --report _site/data/people-report.json
 
       - name: Verifiera täckning och app
         run: |
@@ -86,7 +66,7 @@ jobs:
           assert 'maklarspaning-v7-20260724' in Path('_site/sw.js').read_text()
           print('Personalkontroll v7:', json.dumps(coverage, ensure_ascii=False))
           PY
-          rm -rf _site/.github _site/source _site/package _site/overlays _site/scripts
+          rm -rf _site/scripts
 
       - name: Konfigurera Pages
         uses: actions/configure-pages@v5
