@@ -92,6 +92,45 @@ jobs:
           assert 'maklarspaning-v5-20260724' in sw
           print('Bugggranskning v5 godkänd')
           PY
+
+      - name: Lägg på personalvyn v6
+        run: |
+          cat overlays/v6/overlay.tar.xz.b64.part* | base64 --decode > overlay-v6.tar.xz
+          echo "33fcaec02492dd969ef003497ccfdf3b583ce418a75f98bc837e4659d148234e  overlay-v6.tar.xz" | sha256sum --check
+          tar -xJf overlay-v6.tar.xz -C _site
+          node --check _site/app.js
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          data = json.loads(Path('_site/data/app-data.json').read_text())
+          assert len(data['companies']) == 45
+          assert len(data['offices']) == 91
+          assert len(data['officePeople']) == 50
+
+          counts = {
+              office_id: sum(person['officeId'] == office_id for person in data['officePeople'])
+              for office_id in ['o1', 'o2', 'o3', 'o4', 'o5']
+          }
+          assert counts == {'o1': 12, 'o2': 13, 'o3': 12, 'o4': 11, 'o5': 2}
+
+          hovas = [person for person in data['officePeople'] if person['officeId'] == 'o2']
+          assert sum(person['type'] == 'broker' for person in hovas) == 10
+          assert sum(person['type'] == 'staff' for person in hovas) == 3
+
+          app = Path('_site/app.js').read_text()
+          sw = Path('_site/sw.js').read_text()
+          for phrase in [
+              "const APP_VERSION = '6.0'",
+              'data-office-people',
+              'Hittamäklare / Booli',
+              'openOfficePeople',
+              'data-add-office-person',
+          ]:
+              assert phrase in app
+          assert 'maklarspaning-v6-20260724' in sw
+          print('Personalvy v6 godkänd: 50 verifierade personposter')
+          PY
           rm -rf _site/.github _site/source _site/package _site/overlays
 
       - name: Konfigurera Pages
