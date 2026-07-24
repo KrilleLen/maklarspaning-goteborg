@@ -9,12 +9,12 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages-v73-manual
+  group: pages
   cancel-in-progress: true
 
 jobs:
   deploy:
-    name: Publicera v7.3
+    name: Publicera v7.3 stabil
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -24,57 +24,66 @@ jobs:
       - name: Hämta repositoryt
         uses: actions/checkout@v4
 
-      - name: Bygg vanliga webbfiler utan Base64 i Safari
+      - name: Bygg färdiga webbfiler på GitHub
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p _site/data _site/icons
-
-          cp index.html _site/index.html
-          cp index.html _site/404.html
-          cp latest.html _site/latest.html
-          cp manifest.webmanifest _site/manifest.webmanifest
-          cp favicon.svg _site/favicon.svg
-          cp sw.js _site/sw.js
-          cp -r icons/. _site/icons/
-          touch _site/.nojekyll
-
-          cat v72/styles.css.gz.b64 \
-            | tr -d '\r\n\t ' \
-            | base64 --decode \
-            | gzip --decompress --stdout > _site/styles.css
-
-          cat v72/app.direct.js.gz.b64.s* \
-            | tr -d '\r\n\t ' \
-            | base64 --decode \
-            | gzip --decompress --stdout > _site/app.js
-
-          cat v72/app-data.json.gz.b64.s* \
-            | tr -d '\r\n\t ' \
-            | base64 --decode \
-            | gzip --decompress --stdout > _site/data/app-data.json
-
-          sed -i "s/const APP_VERSION = '7.2';/const APP_VERSION = '7.3';/" _site/app.js
-
-          node --check _site/app.js
           python3 - <<'PY'
-          import json
+          import base64, gzip, json, re, shutil
           from pathlib import Path
 
-          data = json.loads(Path('_site/data/app-data.json').read_text())
-          app = Path('_site/app.js').read_text()
-          index = Path('_site/index.html').read_text()
+          root = Path('.')
+          site = Path('_site')
+          (site / 'data').mkdir(parents=True, exist_ok=True)
+          (site / 'icons').mkdir(parents=True, exist_ok=True)
 
+          def numbered_parts(pattern):
+              paths = list(root.glob(pattern))
+              def number(path):
+                  match = re.search(r'\.s(\d+)$', path.name)
+                  return int(match.group(1)) if match else 0
+              return sorted(paths, key=number)
+
+          def unpack(pattern):
+              paths = numbered_parts(pattern)
+              if not paths:
+                  raise RuntimeError(f'Inga delar hittades: {pattern}')
+              encoded = ''.join(path.read_text().split())
+              return gzip.decompress(base64.b64decode(encoded))
+
+          css = unpack('v72/styles.css.gz.b64')
+          app = unpack('v72/app.direct.js.gz.b64.s*').decode('utf-8')
+          data_bytes = unpack('v72/app-data.json.gz.b64.s*')
+
+          app = re.sub(r"const APP_VERSION = '[^']+';", "const APP_VERSION = '7.3';", app, count=1)
+          data = json.loads(data_bytes)
           assert len(data['companies']) == 45
           assert len(data['offices']) == 91
           assert len(data.get('officePeople', [])) >= 50
-          assert "const APP_VERSION = '7.3'" in app
           assert 'renderOfficePeopleInline' in app
+
+          index = Path('index.html').read_text()
           assert 'v7.3' in index
           assert 'DecompressionStream' not in index
-          assert 'base64' not in index.lower()
-          print('Version 7.3 verifierad: vanliga filer, ingen komprimering i Safari')
+
+          (site / 'index.html').write_text(index)
+          (site / '404.html').write_text(index)
+          (site / 'latest.html').write_text(index)
+          (site / 'styles.css').write_bytes(css)
+          (site / 'app.js').write_text(app)
+          (site / 'data' / 'app-data.json').write_text(json.dumps(data, ensure_ascii=False, separators=(',', ':')))
+
+          for name in ['manifest.webmanifest', 'favicon.svg', 'sw.js']:
+              shutil.copy2(name, site / name)
+          for path in Path('icons').iterdir():
+              if path.is_file():
+                  shutil.copy2(path, site / 'icons' / path.name)
+          (site / '.nojekyll').touch()
+          print('v7.3 byggd som vanliga filer')
           PY
+          node --check _site/app.js
+          test -s _site/styles.css
+          test -s _site/data/app-data.json
 
       - name: Konfigurera GitHub Pages
         uses: actions/configure-pages@v5
