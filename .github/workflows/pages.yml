@@ -24,12 +24,31 @@ jobs:
       - name: Hämta projektet
         uses: actions/checkout@v6
 
-      - name: Bygg och verifiera webbappen
+      - name: Bygg grundversionen
         run: |
           mkdir -p _site
           cat package/app.zip.b64.part* | base64 --decode > app.zip
           echo "08a0407a01fc094c894798facefbbf2494228c0586e765378ba6d5a1ff8746ac  app.zip" | sha256sum --check
           unzip -q app.zip -d _site
+
+      - name: Lägg på verifierad datakomplettering
+        run: |
+          cat overlays/v2/app-data.json.gz.b64.part* | base64 --decode | gunzip > _site/data/app-data.json
+          echo "9ef7be628eddbd145aa0df2c10970412a885368f213f71eb5fac77196fbce1e6  _site/data/app-data.json" | sha256sum --check
+          sed -i 's/maklarspaning-v1-20260724/maklarspaning-v2-20260724/g' _site/sw.js
+          sed -i 's/Saknas i ekonomifilen/Kvar att kartlägga/g' _site/app.js
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path('_site/data/app-data.json').read_text())
+          assert len(data['companies']) == 45
+          assert len(data['offices']) == 91
+          assert len(data['workforce']) == 21
+          required = {'MOHV', 'Mäklarringen', 'LISTED', 'Agency by A', 'Entrance', 'm2', 'Reveny', 'Homemäklaren'}
+          present = {row['brand'] for row in data['workforce']}
+          assert required <= present
+          print('Datakontroll godkänd: 45 bolag, 91 kontor, 21 kedjeprofiler')
+          PY
           rm -rf _site/.github _site/source _site/package
 
       - name: Konfigurera Pages
