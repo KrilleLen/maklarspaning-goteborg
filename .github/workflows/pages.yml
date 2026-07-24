@@ -23,12 +23,23 @@ jobs:
     steps:
       - name: Hämta projektet
         uses: actions/checkout@v4
+
+      - name: Bygg och verifiera webbappen
+        run: |
+          mkdir -p _site
+          cat package/app.zip.b64.part* | base64 --decode > app.zip
+          echo "08a0407a01fc094c894798facefbbf2494228c0586e765378ba6d5a1ff8746ac  app.zip" | sha256sum --check
+          unzip -q app.zip -d _site
+          rm -rf _site/.github _site/source _site/package
+
       - name: Konfigurera Pages
         uses: actions/configure-pages@v5
+
       - name: Ladda upp webbappen
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: _site
+
       - name: Publicera
         id: deployment
         uses: actions/deploy-pages@v4
