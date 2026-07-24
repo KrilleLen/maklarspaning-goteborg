@@ -15,11 +15,13 @@ Installerbar PWA för bolagsjämförelse, kontorsmappning och rekryteringsspanin
 
 ## Appadress
 
-När GitHub Pages-workflowen är klar finns appen på:
+Appen publiceras automatiskt på:
 
 ```text
 https://krillelen.github.io/maklarspaning-goteborg/
 ```
+
+Senast triggat för publicering: 2026-07-24.
 
 ## Installera på iPhone
 
