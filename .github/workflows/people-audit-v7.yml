@@ -45,18 +45,25 @@ jobs:
           git push
 
       - name: Bygg komplett version 7
+        id: build
+        continue-on-error: true
         run: |
-          mkdir -p _site
-          python3 scripts/decode_parts.py \
-            'bundles/v7/maklarspaning-v7-full.tar.xz.b64.part*' \
-            maklarspaning-v7-full.tar.xz \
-            512de2ad98c292283cc36406b12edb28a3c35fbe527e7373d87da9a283a5fda0
-          tar -xJf maklarspaning-v7-full.tar.xz -C _site
-          node --check _site/app.js
-          python3 -m py_compile _site/scripts/update_people.py
+          set -o pipefail
+          {
+            set -eux
+            mkdir -p _site
+            python3 scripts/decode_parts.py \
+              'bundles/v7/maklarspaning-v7-full.tar.xz.b64.part*' \
+              maklarspaning-v7-full.tar.xz \
+              512de2ad98c292283cc36406b12edb28a3c35fbe527e7373d87da9a283a5fda0
+            tar -xJf maklarspaning-v7-full.tar.xz -C _site
+            node --check _site/app.js
+            python3 -m py_compile _site/scripts/update_people.py
+          } 2>&1 | tee /tmp/v7-build.log
 
       - name: Hämta och matcha publika personallistor
         id: scrape
+        if: steps.build.outcome == 'success'
         continue-on-error: true
         run: |
           set -o pipefail
@@ -68,6 +75,7 @@ jobs:
 
       - name: Verifiera täckning
         id: validate
+        if: steps.scrape.outcome == 'success'
         continue-on-error: true
         run: |
           set -o pipefail
@@ -89,10 +97,12 @@ jobs:
       - name: Spara slutrapport
         if: always()
         env:
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
           SCRAPE_OUTCOME: ${{ steps.scrape.outcome }}
           VALIDATE_OUTCOME: ${{ steps.validate.outcome }}
         run: |
           mkdir -p reports
+          cp /tmp/v7-build.log reports/latest-v7-build.log 2>/dev/null || true
           cp /tmp/v7-audit.log reports/latest-v7-people-audit.log 2>/dev/null || true
           python3 - <<'PY'
           import json
@@ -100,12 +110,14 @@ jobs:
           from datetime import datetime, timezone
           from pathlib import Path
 
+          build = os.environ.get('BUILD_OUTCOME')
           scrape = os.environ.get('SCRAPE_OUTCOME')
           validate = os.environ.get('VALIDATE_OUTCOME')
-          state = 'completed' if scrape == 'success' and validate == 'success' else 'failed'
+          state = 'completed' if build == scrape == validate == 'success' else 'failed'
           status = {
               'generatedAt': datetime.now(timezone.utc).isoformat(),
               'state': state,
+              'buildOutcome': build,
               'scrapeOutcome': scrape,
               'validateOutcome': validate,
               'reportCreated': Path('_site/data/people-report.json').exists(),
@@ -147,8 +159,10 @@ jobs:
       - name: Stoppa vid misslyckad granskning
         if: always()
         env:
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
           SCRAPE_OUTCOME: ${{ steps.scrape.outcome }}
           VALIDATE_OUTCOME: ${{ steps.validate.outcome }}
         run: |
+          test "$BUILD_OUTCOME" = "success"
           test "$SCRAPE_OUTCOME" = "success"
           test "$VALIDATE_OUTCOME" = "success"
