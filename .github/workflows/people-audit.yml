@@ -55,13 +55,19 @@ jobs:
           node --check _site/app.js
 
       - name: Hämta och matcha publika personallistor
+        id: scrape
+        continue-on-error: true
         run: |
-          python3 -m pip install --disable-pip-version-check --quiet requests beautifulsoup4 lxml
-          python3 _site/scripts/update_people.py _site/data/app-data.json --report _site/data/people-report.json
+          set -o pipefail
+          python3 -m pip install --disable-pip-version-check --quiet requests beautifulsoup4 lxml 2>&1 | tee /tmp/people-audit.log
+          python3 _site/scripts/update_people.py _site/data/app-data.json --report _site/data/people-report.json 2>&1 | tee -a /tmp/people-audit.log
 
       - name: Verifiera täckning
+        id: validate
+        continue-on-error: true
         run: |
-          python3 - <<'PY'
+          set -o pipefail
+          python3 - <<'PY' 2>&1 | tee -a /tmp/people-audit.log
           import json
           from pathlib import Path
 
@@ -75,42 +81,75 @@ jobs:
           print(json.dumps(coverage, ensure_ascii=False, indent=2))
           PY
 
-      - name: Spara rapport och verifierade personposter
+      - name: Spara rapport, personposter och diagnostik
+        if: always()
+        env:
+          SCRAPE_OUTCOME: ${{ steps.scrape.outcome }}
+          VALIDATE_OUTCOME: ${{ steps.validate.outcome }}
         run: |
           mkdir -p reports
-          cp _site/data/people-report.json reports/latest-people-report.json
+          cp /tmp/people-audit.log reports/latest-people-audit.log 2>/dev/null || true
           python3 - <<'PY'
           import json
+          import os
           from pathlib import Path
+          from datetime import datetime, timezone
 
-          data = json.loads(Path('_site/data/app-data.json').read_text())
-          snapshot = {
-              'generatedAt': data.get('meta', {}).get('peopleUpdatedAt'),
-              'coverage': data.get('peopleCoverage', {}),
-              'offices': [
-                  {
-                      'id': office.get('id'),
-                      'brand': office.get('brand'),
-                      'office': office.get('office'),
-                      'peopleStatus': office.get('peopleStatus'),
-                      'peopleCount': office.get('peopleCount', 0),
-                      'brokerCount': office.get('brokerCount', 0),
-                      'staffCount': office.get('staffCount', 0),
-                      'peopleNote': office.get('peopleNote'),
-                  }
-                  for office in data.get('offices', [])
-              ],
-              'officePeople': data.get('officePeople', []),
-              'unassignedPeople': data.get('unassignedPeople', []),
+          status = {
+              'generatedAt': datetime.now(timezone.utc).isoformat(),
+              'scrapeOutcome': os.environ.get('SCRAPE_OUTCOME'),
+              'validateOutcome': os.environ.get('VALIDATE_OUTCOME'),
+              'reportCreated': Path('_site/data/people-report.json').exists(),
+              'dataCreated': Path('_site/data/app-data.json').exists(),
           }
-          Path('reports/latest-people-snapshot.json').write_text(
-              json.dumps(snapshot, ensure_ascii=False, indent=2), encoding='utf-8'
+          Path('reports/latest-audit-status.json').write_text(
+              json.dumps(status, ensure_ascii=False, indent=2), encoding='utf-8'
           )
+
+          if Path('_site/data/people-report.json').exists():
+              Path('reports/latest-people-report.json').write_text(
+                  Path('_site/data/people-report.json').read_text(encoding='utf-8'), encoding='utf-8'
+              )
+
+          if Path('_site/data/app-data.json').exists():
+              data = json.loads(Path('_site/data/app-data.json').read_text())
+              snapshot = {
+                  'generatedAt': data.get('meta', {}).get('peopleUpdatedAt'),
+                  'coverage': data.get('peopleCoverage', {}),
+                  'offices': [
+                      {
+                          'id': office.get('id'),
+                          'brand': office.get('brand'),
+                          'office': office.get('office'),
+                          'peopleStatus': office.get('peopleStatus'),
+                          'peopleCount': office.get('peopleCount', 0),
+                          'brokerCount': office.get('brokerCount', 0),
+                          'staffCount': office.get('staffCount', 0),
+                          'peopleNote': office.get('peopleNote'),
+                      }
+                      for office in data.get('offices', [])
+                  ],
+                  'officePeople': data.get('officePeople', []),
+                  'unassignedPeople': data.get('unassignedPeople', []),
+              }
+              Path('reports/latest-people-snapshot.json').write_text(
+                  json.dumps(snapshot, ensure_ascii=False, indent=2), encoding='utf-8'
+              )
           PY
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add reports/latest-people-report.json reports/latest-people-snapshot.json
+          git add reports
           if ! git diff --cached --quiet; then
-            git commit -m "Uppdatera personalrapport [skip ci]"
+            git commit -m "Uppdatera personalrapport och diagnostik [skip ci]"
+            git pull --rebase origin main
             git push
           fi
+
+      - name: Stoppa vid misslyckad insamling
+        if: always()
+        env:
+          SCRAPE_OUTCOME: ${{ steps.scrape.outcome }}
+          VALIDATE_OUTCOME: ${{ steps.validate.outcome }}
+        run: |
+          test "$SCRAPE_OUTCOME" = "success"
+          test "$VALIDATE_OUTCOME" = "success"
