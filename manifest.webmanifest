@@ -1,0 +1,15 @@
+{
+  "name": "Mäklarspaning Göteborg",
+  "short_name": "Mäklarspaning",
+  "description": "Bolagsjämförelse och rekryteringsradar för mäklarfirmor i Göteborg.",
+  "lang": "sv-SE",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#07111b",
+  "theme_color": "#0b1724",
+  "icons": [
+    {"src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}
+  ]
+}
