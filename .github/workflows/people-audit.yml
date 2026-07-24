@@ -1,0 +1,116 @@
+name: Uppdatera personalrapport
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/people-audit.yml'
+      - 'overlays/v7/**'
+  schedule:
+    - cron: '45 3 * * 1'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: people-audit
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Hämta projektet
+        uses: actions/checkout@v4
+
+      - name: Bygg aktuell appversion
+        run: |
+          mkdir -p _site
+          cat package/app.zip.b64.part* | base64 --decode > app.zip
+          echo "08a0407a01fc094c894798facefbbf2494228c0586e765378ba6d5a1ff8746ac  app.zip" | sha256sum --check
+          unzip -q app.zip -d _site
+
+          cat overlays/v4/overlay.tar.xz.b64.part* | base64 --decode > overlay-v4.tar.xz
+          echo "23dbb54db029d7e0db8eac45267e94bf65602fce6787904c09ca094d0f68b398  overlay-v4.tar.xz" | sha256sum --check
+          tar -xJf overlay-v4.tar.xz -C _site
+
+          base64 --decode overlays/v5/v5.patch.xz.b64 > v5.patch.xz
+          echo "9347999733eea24f7aa140b718651f736217cf0b53249f8bff9fe530159f4f1f  v5.patch.xz" | sha256sum --check
+          xz -dc v5.patch.xz > v5.patch
+          (cd _site && patch -p1 < ../v5.patch)
+
+          cat overlays/v6/overlay.tar.xz.b64.part* | base64 --decode > overlay-v6.tar.xz
+          echo "33fcaec02492dd969ef003497ccfdf3b583ce418a75f98bc837e4659d148234e  overlay-v6.tar.xz" | sha256sum --check
+          tar -xJf overlay-v6.tar.xz -C _site
+          base64 --decode overlays/v6/v61.patch.xz.b64 > v61.patch.xz
+          echo "09147b34c9da75b42eb54d9199b1dd6357619121220052e737b135049dbd93e3  v61.patch.xz" | sha256sum --check
+          xz -dc v61.patch.xz > v61.patch
+          (cd _site && patch -p1 < ../v61.patch)
+
+          cat overlays/v7/overlay-v7.tar.xz.b64.part* | base64 --decode > overlay-v7.tar.xz
+          echo "f439d71f49b9097bfe42d2570973703d0f551b2a95a5cd40b93b9f69a77fedef  overlay-v7.tar.xz" | sha256sum --check
+          tar -xJf overlay-v7.tar.xz -C _site
+          node --check _site/app.js
+
+      - name: Hämta och matcha publika personallistor
+        run: |
+          python3 -m pip install --disable-pip-version-check --quiet requests beautifulsoup4 lxml
+          python3 _site/scripts/update_people.py _site/data/app-data.json --report _site/data/people-report.json
+
+      - name: Verifiera täckning
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          data = json.loads(Path('_site/data/app-data.json').read_text())
+          report = json.loads(Path('_site/data/people-report.json').read_text())
+          coverage = report['coverage']
+          assert len(data['offices']) == 91
+          assert coverage['officeCount'] == 91
+          assert coverage['officeAssignments'] >= 50
+          assert all(office.get('peopleStatus') for office in data['offices'])
+          print(json.dumps(coverage, ensure_ascii=False, indent=2))
+          PY
+
+      - name: Spara rapport och verifierade personposter
+        run: |
+          mkdir -p reports
+          cp _site/data/people-report.json reports/latest-people-report.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          data = json.loads(Path('_site/data/app-data.json').read_text())
+          snapshot = {
+              'generatedAt': data.get('meta', {}).get('peopleUpdatedAt'),
+              'coverage': data.get('peopleCoverage', {}),
+              'offices': [
+                  {
+                      'id': office.get('id'),
+                      'brand': office.get('brand'),
+                      'office': office.get('office'),
+                      'peopleStatus': office.get('peopleStatus'),
+                      'peopleCount': office.get('peopleCount', 0),
+                      'brokerCount': office.get('brokerCount', 0),
+                      'staffCount': office.get('staffCount', 0),
+                      'peopleNote': office.get('peopleNote'),
+                  }
+                  for office in data.get('offices', [])
+              ],
+              'officePeople': data.get('officePeople', []),
+              'unassignedPeople': data.get('unassignedPeople', []),
+          }
+          Path('reports/latest-people-snapshot.json').write_text(
+              json.dumps(snapshot, ensure_ascii=False, indent=2), encoding='utf-8'
+          )
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add reports/latest-people-report.json reports/latest-people-snapshot.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Uppdatera personalrapport [skip ci]"
+            git push
+          fi
