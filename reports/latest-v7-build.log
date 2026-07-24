@@ -1,0 +1,3 @@
++ mkdir -p _site
++ python3 scripts/decode_parts.py 'bundles/v7/maklarspaning-v7-full.tar.xz.b64.part*' maklarspaning-v7-full.tar.xz 512de2ad98c292283cc36406b12edb28a3c35fbe527e7373d87da9a283a5fda0
+no decoded candidate matched 512de2ad98c292283cc36406b12edb28a3c35fbe527e7373d87da9a283a5fda0; joined-base64-stream=e49bf40e60cdc2c5dcd239d630c8e28a2f67ebf9c7725f5e485d7dcd675184ef, individually-encoded-parts=e49bf40e60cdc2c5dcd239d630c8e28a2f67ebf9c7725f5e485d7dcd675184ef
