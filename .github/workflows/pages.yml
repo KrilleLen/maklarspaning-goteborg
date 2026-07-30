@@ -1,4 +1,4 @@
-name: Publicera Mäklarspaning v7.4
+name: Publicera Mäklarspaning v8
 
 on:
   push:
@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   deploy:
-    name: Verifiera och publicera v7.4
+    name: Verifiera och publicera v8
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -25,55 +25,36 @@ jobs:
       - name: Hämta repositoryt
         uses: actions/checkout@v4
 
-      - name: Återskapa verifierad release
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          cat \
-            release-v7.4/site.b64.part00 \
-            release-v7.4/site.b64.part01 \
-            release-v7.4/site.b64.part02-03 \
-            release-v7.4/site.b64.part04-05 \
-            release-v7.4/tail00 \
-            release-v7.4/tail01 \
-            release-v7.4/tail02 \
-            release-v7.4/tail03 \
-            release-v7.4/tail04 \
-            | tr -d '\r\n\t ' \
-            | base64 --decode > site-v7.4-verified.tar.gz
-
-          echo "06dd027243df7eb1319c90cb5fee36ea6ab122781f2141b81f29823bcdc72fe7  site-v7.4-verified.tar.gz" \
-            | sha256sum --check --strict
-
-          mkdir -p _site
-          tar -xzf site-v7.4-verified.tar.gz -C _site
-
       - name: Kontrollera appen
         shell: bash
         run: |
           set -euo pipefail
-          node --check _site/app.js
-          test -s _site/styles.css
-          test -s _site/data/app-data.json
+          node --check site/app.js
+          node scripts/test-bolagsverket-import.mjs
+          node scripts/test-financial-import.mjs
+          node scripts/validate-financial-data.mjs site/data/app-data.json
+          node scripts/test-financial-ui.mjs
+          test -s site/styles.css
+          test -s site/data/app-data.json
+          test -s site/data/financial-import.schema.json
 
           python3 - <<'PY'
           import json
           from pathlib import Path
 
-          data = json.loads(Path('_site/data/app-data.json').read_text())
-          app = Path('_site/app.js').read_text()
-          index = Path('_site/index.html').read_text()
+          data = json.loads(Path('site/data/app-data.json').read_text())
+          app = Path('site/app.js').read_text()
+          index = Path('site/index.html').read_text()
 
           assert len(data['companies']) == 45
           assert len(data['offices']) == 91
           assert len(data.get('officePeople', [])) == 50
-          assert "const APP_VERSION = '7.4';" in app
-          assert 'renderOfficePeopleInline' in app
-          assert 'v7.4' in index
-          assert 'DecompressionStream' not in index
-          assert 'Incomplete compressed input' not in index
-          print('Mäklarspaning v7.4 är verifierad och redo för publicering')
+          assert len({company['orgNo'] for company in data['companies']}) == 45
+          assert "const APP_VERSION = '8.0';" in app
+          assert 'financialTabNavigation' in app
+          assert 'financialStatementTable' in app
+          assert 'v8.0' in index
+          print('Mäklarspaning v8 är verifierad och redo för publicering')
           PY
 
       - name: Konfigurera GitHub Pages
@@ -82,7 +63,7 @@ jobs:
       - name: Skapa Pages-paket
         uses: actions/upload-pages-artifact@v4
         with:
-          path: _site
+          path: site
 
       - name: Publicera
         id: deployment

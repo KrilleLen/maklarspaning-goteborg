@@ -1,0 +1,6 @@
+.env
+.env.*
+tmp/
+*.zip
+client_credentials.txt
+

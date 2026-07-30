@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="app-version" content="8.0">
+  <meta name="theme-color" content="#0b1724">
+  <meta name="description" content="Professionell bolags- och rekryteringsspaning för mäklarfirmor i Göteborg, med EO Franchise Göteborg 21 AB som benchmark.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Mäklarspaning">
+  <link rel="manifest" href="manifest.webmanifest?v=8.0">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="styles.css?v=8.0">
+  <title>Mäklarspaning Göteborg</title>
+</head>
+<body>
+  <a class="skip-link" href="#main">Hoppa till innehåll</a>
+  <div id="offlineBanner" class="offline-banner" hidden>Offline-läge – sparad data visas.</div>
+
+  <header class="topbar">
+    <div class="brand-lockup">
+      <div class="brand-mark" aria-hidden="true">M</div>
+      <div>
+        <p class="eyebrow">Konkurrent- och rekryteringsradar</p>
+        <div class="title-line"><h1>Mäklarspaning <span>Göteborg</span></h1><span class="version-badge">v8.0</span></div>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button id="installButton" class="button button-accent" hidden>Installera app</button>
+      <button id="openMethod" class="icon-button" aria-label="Datakvalitet och metod" title="Datakvalitet och metod">i</button>
+    </div>
+  </header>
+
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Huvudnavigation">
+      <nav id="desktopNav" class="nav-list"></nav>
+      <div class="sidebar-note">
+        <span class="status-dot"></span>
+        <div>
+          <strong>Benchmark</strong>
+          <span>EO Franchise Göteborg 21 AB</span>
+        </div>
+      </div>
+    </aside>
+
+    <main id="main" class="main-content" tabindex="-1">
+      <div id="appLoading" class="loading-state">
+        <div class="loader"></div>
+        <p>Läser in marknadsbilden…</p>
+      </div>
+      <div id="appError" class="error-state" hidden></div>
+      <div id="viewRoot" hidden></div>
+    </main>
+  </div>
+
+  <nav id="mobileNav" class="mobile-nav" aria-label="Huvudnavigation"></nav>
+
+  <div id="compareDock" class="compare-dock" hidden>
+    <div>
+      <strong id="compareCount">0 bolag valda</strong>
+      <span>Jämför mot EO Göteborg 21</span>
+    </div>
+    <div class="compare-dock-actions">
+      <button id="clearCompare" class="button button-ghost">Rensa</button>
+      <button id="openCompare" class="button button-accent">Jämför</button>
+    </div>
+  </div>
+
+  <dialog id="detailDialog" class="dialog dialog-wide">
+    <button class="dialog-close" data-close-dialog aria-label="Stäng">×</button>
+    <div id="detailDialogContent"></div>
+  </dialog>
+
+  <dialog id="methodDialog" class="dialog dialog-wide">
+    <button class="dialog-close" data-close-dialog aria-label="Stäng">×</button>
+    <div id="methodDialogContent"></div>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <noscript>Appen kräver JavaScript för filtrering, jämförelser och lokal rekryteringspipeline.</noscript>
+  <script src="app.js?v=8.0" defer></script>
+</body>
+</html>

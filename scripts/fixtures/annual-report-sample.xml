@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance"
+  xmlns:se-cd-base="http://www.taxonomier.se/se/fr/cd-base/2021-10-31"
+  xmlns:se-gen-base="http://www.taxonomier.se/se/fr/gen-base/2021-10-31"
+  xmlns:iso4217="http://www.xbrl.org/2003/iso4217">
+  <xbrli:context id="period0">
+    <xbrli:entity><xbrli:identifier scheme="http://www.bolagsverket.se">559309-3247</xbrli:identifier></xbrli:entity>
+    <xbrli:period><xbrli:startDate>2024-01-01</xbrli:startDate><xbrli:endDate>2024-12-31</xbrli:endDate></xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="period1">
+    <xbrli:entity><xbrli:identifier scheme="http://www.bolagsverket.se">559309-3247</xbrli:identifier></xbrli:entity>
+    <xbrli:period><xbrli:startDate>2023-01-01</xbrli:startDate><xbrli:endDate>2023-12-31</xbrli:endDate></xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="balance0">
+    <xbrli:entity><xbrli:identifier scheme="http://www.bolagsverket.se">559309-3247</xbrli:identifier></xbrli:entity>
+    <xbrli:period><xbrli:instant>2024-12-31</xbrli:instant></xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="balance1">
+    <xbrli:entity><xbrli:identifier scheme="http://www.bolagsverket.se">559309-3247</xbrli:identifier></xbrli:entity>
+    <xbrli:period><xbrli:instant>2023-12-31</xbrli:instant></xbrli:period>
+  </xbrli:context>
+  <xbrli:unit id="SEK"><xbrli:measure>iso4217:SEK</xbrli:measure></xbrli:unit>
+  <xbrli:unit id="employees"><xbrli:measure>xbrli:pure</xbrli:measure></xbrli:unit>
+  <se-cd-base:Organisationsnummer contextRef="period0">559309-3247</se-cd-base:Organisationsnummer>
+  <se-cd-base:RedovisningsvalutaHandlingList contextRef="period0">se-mem-base:ValutaSvenskaKronorMember</se-cd-base:RedovisningsvalutaHandlingList>
+  <se-gen-base:Nettoomsattning contextRef="period0" unitRef="SEK" decimals="-3">42000000</se-gen-base:Nettoomsattning>
+  <se-gen-base:Nettoomsattning contextRef="period0" unitRef="SEK" decimals="INF">42043123</se-gen-base:Nettoomsattning>
+  <se-gen-base:Nettoomsattning contextRef="period1" unitRef="SEK" decimals="INF">41270000</se-gen-base:Nettoomsattning>
+  <se-gen-base:Rorelsekostnader contextRef="period0" unitRef="SEK" decimals="INF">35600000</se-gen-base:Rorelsekostnader>
+  <se-gen-base:OvrigaExternaKostnader contextRef="period0" unitRef="SEK" decimals="INF">8200000</se-gen-base:OvrigaExternaKostnader>
+  <se-gen-base:Personalkostnader contextRef="period0" unitRef="SEK" decimals="INF">27000000</se-gen-base:Personalkostnader>
+  <se-gen-base:AvskrivningarNedskrivningarMateriellaImmateriellaAnlaggningstillgangar contextRef="period0" unitRef="SEK" decimals="INF">100000</se-gen-base:AvskrivningarNedskrivningarMateriellaImmateriellaAnlaggningstillgangar>
+  <se-gen-base:Rorelseresultat contextRef="period0" unitRef="SEK" decimals="INF">6343123</se-gen-base:Rorelseresultat>
+  <se-gen-base:RantekostnaderLiknandeResultatposter contextRef="period0" unitRef="SEK" decimals="INF">120000</se-gen-base:RantekostnaderLiknandeResultatposter>
+  <se-gen-base:ResultatEfterFinansiellaPoster contextRef="period0" unitRef="SEK" decimals="INF">6450000</se-gen-base:ResultatEfterFinansiellaPoster>
+  <se-gen-base:ResultatEfterFinansiellaPoster contextRef="period1" unitRef="SEK" decimals="INF">7738000</se-gen-base:ResultatEfterFinansiellaPoster>
+  <se-gen-base:ResultatForeSkatt contextRef="period0" unitRef="SEK" decimals="INF">6450000</se-gen-base:ResultatForeSkatt>
+  <se-gen-base:SkattAretsResultat contextRef="period0" unitRef="SEK" decimals="INF">1328700</se-gen-base:SkattAretsResultat>
+  <se-gen-base:AretsResultat contextRef="period0" unitRef="SEK" decimals="INF">5121300</se-gen-base:AretsResultat>
+  <se-gen-base:MedelantaletAnstallda contextRef="period0" unitRef="employees" decimals="INF">13</se-gen-base:MedelantaletAnstallda>
+  <se-gen-base:MedelantaletAnstallda contextRef="period1" unitRef="employees" decimals="INF">14</se-gen-base:MedelantaletAnstallda>
+  <se-gen-base:KassaBank contextRef="balance0" unitRef="SEK" decimals="INF">9000000</se-gen-base:KassaBank>
+  <se-gen-base:Omsattningstillgangar contextRef="balance0" unitRef="SEK" decimals="INF">18000000</se-gen-base:Omsattningstillgangar>
+  <se-gen-base:Tillgangar contextRef="balance0" unitRef="SEK" decimals="INF">22000000</se-gen-base:Tillgangar>
+  <se-gen-base:EgetKapital contextRef="balance0" unitRef="SEK" decimals="INF">11000000</se-gen-base:EgetKapital>
+  <se-gen-base:KortfristigaSkulder contextRef="balance0" unitRef="SEK" decimals="INF">9000000</se-gen-base:KortfristigaSkulder>
+  <se-gen-base:LangfristigaSkulder contextRef="balance0" unitRef="SEK" decimals="INF">2000000</se-gen-base:LangfristigaSkulder>
+  <se-gen-base:Omsattningstillgangar contextRef="balance1" unitRef="SEK" decimals="INF">16000000</se-gen-base:Omsattningstillgangar>
+  <se-gen-base:Tillgangar contextRef="balance1" unitRef="SEK" decimals="INF">20000000</se-gen-base:Tillgangar>
+  <se-gen-base:EgetKapital contextRef="balance1" unitRef="SEK" decimals="INF">10000000</se-gen-base:EgetKapital>
+  <se-gen-base:KortfristigaSkulder contextRef="balance1" unitRef="SEK" decimals="INF">8000000</se-gen-base:KortfristigaSkulder>
+</xbrli:xbrl>
+

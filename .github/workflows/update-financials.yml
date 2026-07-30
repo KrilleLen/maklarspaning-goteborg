@@ -1,0 +1,69 @@
+name: Uppdatera bokslut från Bolagsverket
+
+on:
+  schedule:
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: financial-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    name: Hämta, verifiera och spara bokslut
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Hämta repositoryt
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Kontrollera att API-hemligheterna finns
+        env:
+          BOLAGSVERKET_CLIENT_ID: ${{ secrets.BOLAGSVERKET_CLIENT_ID }}
+          BOLAGSVERKET_CLIENT_SECRET: ${{ secrets.BOLAGSVERKET_CLIENT_SECRET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$BOLAGSVERKET_CLIENT_ID"
+          test -n "$BOLAGSVERKET_CLIENT_SECRET"
+
+      - name: Testa normaliseringen
+        run: |
+          node scripts/test-bolagsverket-import.mjs
+          node scripts/test-financial-import.mjs
+
+      - name: Hämta officiella årsredovisningar
+        env:
+          BOLAGSVERKET_CLIENT_ID: ${{ secrets.BOLAGSVERKET_CLIENT_ID }}
+          BOLAGSVERKET_CLIENT_SECRET: ${{ secrets.BOLAGSVERKET_CLIENT_SECRET }}
+          BOLAGSVERKET_MAX_DOCUMENTS: '8'
+          BOLAGSVERKET_REQUEST_PAUSE_MS: '500'
+        run: node scripts/fetch-bolagsverket-financials.mjs "$RUNNER_TEMP/bolagsverket-import.json"
+
+      - name: Importera och verifiera
+        run: |
+          set -euo pipefail
+          node scripts/import-financials.mjs "$RUNNER_TEMP/bolagsverket-import.json"
+          node scripts/validate-financial-data.mjs site/data/app-data.json
+          node scripts/test-financial-ui.mjs
+
+      - name: Spara endast verkliga ändringar
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- site/data/app-data.json; then
+            echo "Inga nya bokslutsuppgifter."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site/data/app-data.json
+          git commit -m "Uppdatera bokslut från Bolagsverket"
+          git push origin HEAD:main
